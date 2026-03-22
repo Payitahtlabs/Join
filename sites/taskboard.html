@@ -206,7 +206,9 @@
           </div>
 
           <div class="settings_block">
-            <label for="categoryInput">Category</label>
+            <label for="categoryInput">Category
+              <span class="error">*</span>
+            </label>
             <div class="select_native category-select" id="categorySelectWrapper">
               <div class="selector_input">
                 <input type="text" id="categoryInput" placeholder="Select task category" readonly>
@@ -216,6 +218,7 @@
                 <label class="dropdown_item" data-value="technical-task" role="option">Technical Task</label>
               </div>
             </div>
+            <small class="error_text">This field is required</small>
           </div>
 
           <div class="settings_block subtasks_block">
