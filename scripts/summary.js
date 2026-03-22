@@ -7,6 +7,8 @@
  */
 
 const SUMMARY_CACHE_KEY = "join_summary_cache_v1";
+const SUMMARY_CACHE_TTL_MS = 15000;
+let summaryRefreshListenersBound = false;
 
 /**
  * Main initialization function for the summary page.
@@ -18,12 +20,15 @@ const SUMMARY_CACHE_KEY = "join_summary_cache_v1";
  * @returns {Promise<void>}
  */
 async function loadSummary() {
+    bindSummaryRefreshListeners();
     setGreeting();
     const cachedSummary = readSummaryCache();
     if (cachedSummary) {
         renderUserName(cachedSummary.userName);
         renderSummary(cachedSummary.tasks);
-    } else {  renderUserName("Guest"); renderSummary({});}
+    } else {
+        renderUserName("Guest");
+    }
     showMobileGreetingIfNeeded();
     try {
         const userIdPromise = resolveActiveUserId();
@@ -48,6 +53,10 @@ function readSummaryCache() {
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object") return null;
+        const updatedAt = Number(parsed.updatedAt || 0);
+        if (!updatedAt || Date.now() - updatedAt > SUMMARY_CACHE_TTL_MS) {
+            return null;
+        }
 
         return {
             userName: typeof parsed.userName === "string" ? parsed.userName : "Guest",
@@ -96,9 +105,42 @@ async function resolveActiveUserId() {
  * @returns {Promise<Object>} An object containing all tasks from the database.
  */
 async function getTasks() {
+    if (typeof window.waitForFirebaseAuthReady === "function") {
+        await window.waitForFirebaseAuthReady();
+    }
     const tasksRef = db.ref("tasks");
-    const snapshot = await tasksRef.get();
-    return snapshot.val() || {};
+    try {
+        const snapshot = await tasksRef.get();
+        return snapshot.val() || {};
+    } catch (error) {
+        if (typeof window.waitForFirebaseAuthReady === "function") {
+            await window.waitForFirebaseAuthReady();
+        }
+        const retrySnapshot = await tasksRef.get();
+        return retrySnapshot.val() || {};
+    }
+}
+
+/**
+ * Registers listeners to refresh summary after returning to the page.
+ * Handles bfcache restores and tab refocus without requiring manual reload.
+ * @returns {void}
+ */
+function bindSummaryRefreshListeners() {
+    if (summaryRefreshListenersBound) return;
+    summaryRefreshListenersBound = true;
+
+    window.addEventListener("pageshow", (event) => {
+        if (event.persisted) loadSummary();
+    });
+
+    window.addEventListener("focus", () => {
+        loadSummary();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") loadSummary();
+    });
 }
 
 /**

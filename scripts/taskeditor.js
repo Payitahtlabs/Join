@@ -121,9 +121,12 @@ function getAssignedContacts() {
  * @param {Object} task - Task object that should be stored in the database.
  * @returns {Promise<void>} Promise resolving once the task has been stored successfully.
  */
-function saveTaskToFirebase(task) {
+async function saveTaskToFirebase(task) {
+    if (typeof window.waitForFirebaseAuthReady === "function") {
+        await window.waitForFirebaseAuthReady();
+    }
     let taskRef = firebase.database().ref("tasks").push();
-    return taskRef.set(task);
+    await taskRef.set(task);
 }
 
 /**

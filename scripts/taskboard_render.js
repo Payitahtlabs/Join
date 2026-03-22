@@ -13,13 +13,12 @@
  * @param {string} taskId
  * @param {Object} task
  * @param {Object} allContacts
- * @param {Object} legacyConnections
  * @returns {Object}
  */
-function normalizeTask(taskId, task, allContacts, legacyConnections) {
+function normalizeTask(taskId, task, allContacts) {
     return {
         ...task,
-        assignedTo: buildAssignedContacts(taskId, task, allContacts, legacyConnections),
+        assignedTo: buildAssignedContacts(task, allContacts),
         subtasks: normalizeSubtasks(task.subtasks),
         priority: task.priority || 'low'
     };
@@ -29,14 +28,13 @@ function normalizeTask(taskId, task, allContacts, legacyConnections) {
  * Processes all tasks and generates HTML strings per column.
  * @param {Object} tasks
  * @param {Object} allContacts
- * @param {Object} legacyConnections
  * @returns {{ columns: Object, nextCache: Object }}
  */
-function buildColumnsFromTasks(tasks, allContacts, legacyConnections) {
+function buildColumnsFromTasks(tasks, allContacts) {
     const columns = { 'todo': '', 'in-progress': '', 'await-feedback': '', 'done': '' };
     const nextCache = {};
     Object.entries(tasks).forEach(([taskId, task]) => {
-        const normalized = normalizeTask(taskId, task, allContacts, legacyConnections);
+        const normalized = normalizeTask(taskId, task, allContacts);
         nextCache[taskId] = normalized;
         if (columns[task.status] !== undefined) columns[task.status] += getCardTemplate(normalized, taskId);
     });
@@ -46,15 +44,18 @@ function buildColumnsFromTasks(tasks, allContacts, legacyConnections) {
 /**
  * Fetches all required board data from Firebase in parallel.
  * @async
- * @returns {Promise<{ tasks: Object, allContacts: Object, legacyConnections: Object }>}
+ * @returns {Promise<{ tasks: Object, allContacts: Object }>}
  */
 async function fetchBoardData() {
+    if (typeof window.waitForFirebaseAuthReady === 'function') {
+        await window.waitForFirebaseAuthReady();
+    }
     const tasksPromise = firebase.database().ref('tasks').get();
     const contactsPromise = getContactsMap();
     const tasksSnapshot = await tasksPromise;
     const tasks = tasksSnapshot.val() || {};
-    const [allContacts, legacyConnections] = await Promise.all([contactsPromise, getLegacyTaskConnections(tasks)]);
-    return { tasks, allContacts, legacyConnections };
+    const allContacts = await contactsPromise;
+    return { tasks, allContacts };
 }
 
 /**
@@ -71,8 +72,8 @@ async function renderBoard(options = {}) {
         renderColumnHTML(buildColumnsFromCachedTasks(cachedTasks));
     }
     try {
-        const { tasks, allContacts, legacyConnections } = await fetchBoardData();
-        const { columns, nextCache } = buildColumnsFromTasks(tasks, allContacts, legacyConnections);
+        const { tasks, allContacts } = await fetchBoardData();
+        const { columns, nextCache } = buildColumnsFromTasks(tasks, allContacts);
         boardTaskCache = nextCache;
         renderColumnHTML(columns);
         writeBoardCache(nextCache);
@@ -242,7 +243,7 @@ async function fetchTaskWithContacts(taskId) {
     ]);
     const task = taskSnap.val();
     if (!task) return null;
-    return normalizeTask(taskId, task, allContacts, boardLegacyConnectionsCache || {});
+    return normalizeTask(taskId, task, allContacts);
 }
 
 /**

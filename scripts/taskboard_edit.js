@@ -287,7 +287,6 @@ function initEditSubtaskEnterKey() {
  */
 function clearTaskFromCache(taskId) {
     delete boardTaskCache[taskId];
-    if (boardLegacyConnectionsCache?.[taskId]) delete boardLegacyConnectionsCache[taskId];
     writeBoardCache(boardTaskCache);
 }
 
@@ -299,12 +298,17 @@ function clearTaskFromCache(taskId) {
  */
 async function deleteTask(taskId) {
     showDeleteToast(async () => {
-        await firebase.database().ref('tasks/' + taskId).remove();
-        await firebase.database().ref('taskUsers/' + taskId).remove();
-        clearTaskFromCache(taskId);
-        closeTaskDetail();
-        renderBoard();
-        showSuccessToast('Task gelöscht');
+        try {
+            await firebase.database().ref('tasks/' + taskId).remove();
+            showSuccessToast('Task gelöscht');
+        } catch (error) {
+            console.error('Failed to delete task:', error);
+            showSuccessToast('Task konnte nicht gelöscht werden');
+        } finally {
+            clearTaskFromCache(taskId);
+            closeTaskDetail();
+            renderBoard();
+        }
     });
 }
 

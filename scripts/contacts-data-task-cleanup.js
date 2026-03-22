@@ -71,25 +71,7 @@ function buildTaskAssignmentCleanupUpdates(tasks, contactId, contactData) {
 
 
 /**
- * Removes a deleted contact from taskUsers map updates.
- * @param {Record<string, Record<string, unknown>>} taskUsersMap - taskUsers map.
- * @param {string} contactId - Deleted contact id.
- * @param {Record<string, unknown>} updates - Mutable Firebase updates object.
- * @category Contacts
- * @subcategory Data Handling
- */
-function applyTaskUsersCleanup(taskUsersMap, contactId, updates) {
-	Object.entries(taskUsersMap || {}).forEach(([taskId, userMap]) => {
-		if (!userMap || typeof userMap !== 'object' || !userMap[contactId]) return;
-		const nextUserMap = { ...userMap };
-		delete nextUserMap[contactId];
-		updates[`taskUsers/${taskId}`] = Object.keys(nextUserMap).length ? nextUserMap : null;
-	});
-}
-
-
-/**
- * Removes deleted contact references from tasks and taskUsers.
+ * Removes deleted contact references from tasks.
  * @param {string} contactId - Deleted contact id.
  * @param {{name?: string, email?: string, phone?: string} | null} contactData - Deleted contact data.
  * @returns {Promise<void>} Resolves after cleanup updates are written.
@@ -99,20 +81,14 @@ function applyTaskUsersCleanup(taskUsersMap, contactId, updates) {
 async function cleanupDeletedContactAssignments(contactId, contactData) {
 	if (!hasDb() || !contactId) return;
 	let tasks = {};
-	let taskUsersMap = {};
 	try {
-		const [tasksSnapshot, taskUsersSnapshot] = await Promise.all([
-			db.ref('tasks').get(),
-			db.ref('taskUsers').get(),
-		]);
+		const tasksSnapshot = await db.ref('tasks').get();
 		tasks = tasksSnapshot.val() || {};
-		taskUsersMap = taskUsersSnapshot.val() || {};
 	} catch (error) {
 		return;
 	}
 
 	const updates = buildTaskAssignmentCleanupUpdates(tasks, contactId, contactData);
-	applyTaskUsersCleanup(taskUsersMap, contactId, updates);
 	if (!Object.keys(updates).length) return;
 	await db.ref().update(updates);
 }

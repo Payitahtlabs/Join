@@ -15,9 +15,6 @@ const BOARD_CACHE_KEY = 'join_board_cache_v1';
 /** Cache for all loaded contact objects from Firebase. @type {Object|null} */
 let boardContactsCache = null;
 
-/** Cache for legacy task-user connections from Firebase. @type {Object|null} */
-let boardLegacyConnectionsCache = null;
-
 /** Cache for all normalized task objects of the current board. @type {Object} */
 let boardTaskCache = {};
 
@@ -291,34 +288,17 @@ function normalizeSubtasks(subtasks) {
 }
 
 /**
- * Resolves assigned users via the legacy task-user connection table.
- * @param {string} taskId
- * @param {Object} allContacts
- * @param {Object} legacyConnections
- * @returns {Array}
- */
-function buildAssignedFromLegacy(taskId, allContacts, legacyConnections) {
-    const legacyIds = legacyConnections[taskId] ? Object.keys(legacyConnections[taskId]) : [];
-    return legacyIds
-        .map(contactId => mapContactToBadge(contactId, allContacts[contactId]))
-        .filter(contact => contact.name);
-}
-
-/**
  * Resolves all assigned contacts of a task as a badge array.
- * @param {string} taskId
  * @param {Object} task
  * @param {Object} allContacts
- * @param {Object} legacyConnections
  * @returns {Array}
  */
-function buildAssignedContacts(taskId, task, allContacts, legacyConnections) {
+function buildAssignedContacts(task, allContacts) {
     const assignedRaw = Array.isArray(task.assignedTo) ? task.assignedTo : [];
     const assignedFromTask = assignedRaw
         .map(entry => normalizeAssignedContact(entry, allContacts))
         .filter(contact => contact !== null);
-    if (assignedFromTask.length > 0 || Array.isArray(task.assignedTo)) return assignedFromTask;
-    return buildAssignedFromLegacy(taskId, allContacts, legacyConnections);
+    return assignedFromTask;
 }
 
 /**
@@ -328,8 +308,12 @@ function buildAssignedContacts(taskId, task, allContacts, legacyConnections) {
  */
 async function getContactsMap() {
     if (boardContactsCache) return boardContactsCache;
-    const snapshot = await firebase.database().ref('contacts').get();
-    boardContactsCache = snapshot.val() || {};
+    try {
+        const snapshot = await firebase.database().ref('contacts').get();
+        boardContactsCache = snapshot.val() || {};
+    } catch (error) {
+        boardContactsCache = {};
+    }
     const ownAccountContact = await fetchOwnAccountContactForBoard();
     if (ownAccountContact && !boardContactsCache[ownAccountContact.id]) {
         boardContactsCache[ownAccountContact.id] = ownAccountContact;
@@ -354,19 +338,4 @@ async function fetchOwnAccountContactForBoard() {
         email: String(profile.email || ''),
         color: profile.color || getAvatarColorFromName(contactName)
     };
-}
-
-/**
- * Loads legacy connections from the taskUsers table in Firebase if needed.
- * @async
- * @param {Object} tasks
- * @returns {Promise<Object>}
- */
-async function getLegacyTaskConnections(tasks) {
-    if (boardLegacyConnectionsCache) return boardLegacyConnectionsCache;
-    const needsLegacy = Object.values(tasks).some(t => !Array.isArray(t.assignedTo));
-    if (!needsLegacy) return {};
-    const snapshot = await firebase.database().ref('taskUsers').get();
-    boardLegacyConnectionsCache = snapshot.val() || {};
-    return boardLegacyConnectionsCache;
 }

@@ -324,6 +324,9 @@ function mapContactsObjectToList(contactsMap) {
 async function readContactsSource() {
   if (!hasDb()) return readLocalContactsMap();
   try {
+    if (typeof window.waitForFirebaseAuthReady === "function") {
+      await window.waitForFirebaseAuthReady();
+    }
     const snapshot = await db.ref("contacts").get();
     return snapshot.val() || {};
   } catch (error) {

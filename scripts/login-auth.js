@@ -309,6 +309,7 @@ function setLoadingState(fields, isLoading) {
  * @subcategory UI & Init
  */
 function setFormMessage(message, text) {
+	if (!message) return;
 	message.textContent = text;
 	message.classList.toggle('is-hidden', !text);
 }
@@ -361,15 +362,46 @@ function initGuestLogin() {
 
 
 /**
- * Navigates to the summary page for guest access.
+ * Signs in anonymously and navigates to the summary page for guest access.
  * @category Login
- * @subcategory UI & Init
+ * @subcategory Firebase Logic
  */
-function handleGuestLogin() {
-	sessionStorage.setItem('guestLogin', '1');
-	localStorage.setItem('guestLogin', '1');
-	sessionStorage.removeItem('userId');
-	window.location.href = './sites/summary.html';
+async function handleGuestLogin() {
+	const authMessage = document.getElementById('login-error-message');
+	setFormMessage(authMessage, '');
+
+	try {
+		if (firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
+			await firebase.auth().signOut();
+		}
+		await firebase.auth().signInAnonymously();
+		sessionStorage.setItem('guestLogin', '1');
+		localStorage.setItem('guestLogin', '1');
+		sessionStorage.removeItem('userId');
+		window.location.href = './sites/summary.html';
+	} catch (error) {
+		setFormMessage(authMessage, getGuestLoginErrorMessage(error));
+	}
+}
+
+
+/**
+ * Maps guest login errors to readable messages.
+ * @param {unknown} error - Firebase auth error.
+ * @returns {string} User-facing message for guest login failures.
+ * @category Login
+ * @subcategory Firebase Logic
+ */
+function getGuestLoginErrorMessage(error) {
+	const fallback = 'Guest login is currently unavailable. Please try again.';
+	if (!error || typeof error !== 'object' || !('code' in error)) return fallback;
+	if (error.code === 'auth/operation-not-allowed') {
+		return 'Guest login is disabled in Firebase. Please enable Anonymous sign-in in Firebase Authentication.';
+	}
+	if (error.code === 'auth/network-request-failed') {
+		return 'Network error. Please check your connection and try again.';
+	}
+	return fallback;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
