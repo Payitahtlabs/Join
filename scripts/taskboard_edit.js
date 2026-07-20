@@ -116,10 +116,11 @@ function handleTaskCreatedSuccess() {
  */
 function buildContactItemHTML(contactId, badge, isAssigned) {
     const displayName = formatContactDisplayName(contactId, badge?.name || '');
-    return `<div class="contact-item ${isAssigned ? 'selected' : ''}" onclick="toggleContactSelection('${contactId}')">
+    const safeColor = sanitizeColor(badge.color);
+    return `<div class="contact-item ${isAssigned ? 'selected' : ''}" onclick="toggleContactSelection('${escapeHtml(contactId)}')">
         <div class="contact-item-left">
-            <div class="user-badge" style="background-color: ${badge.color}">${badge.initials}</div>
-            <span>${displayName}</span>
+            <div class="user-badge" style="background-color: ${safeColor}">${escapeHtml(badge.initials)}</div>
+            <span>${escapeHtml(displayName)}</span>
         </div>
         <img src="../assets/icons/checkbox_${isAssigned ? 'white' : 'empty'}.svg">
     </div>`;
@@ -172,9 +173,9 @@ function renderEditContactBadges() {
     const container = document.getElementById('edit-assigned-badges');
     if (!container) return;
     container.innerHTML = currentEditContacts.map((u, index) => `
-        <div class="user-badge" style="background-color: ${u.color}"
-             title="Click to remove ${u.name}" onclick="removeContactFromEdit(${index})">
-            ${u.initials}
+        <div class="user-badge" style="background-color: ${sanitizeColor(u.color)}"
+             title="Click to remove ${escapeHtml(u.name)}" onclick="removeContactFromEdit(${index})">
+            ${escapeHtml(u.initials)}
         </div>
     `).join('');
 }
@@ -226,7 +227,7 @@ function refreshEditSubtaskUI() {
     if (!list) return;
     list.innerHTML = currentEditSubtasks.map((st, index) => `
         <li class="edit-subtask-item">
-            <span class="subtask-title">${st.title}</span>
+            <span class="subtask-title">${escapeHtml(st.title)}</span>
             <div class="subtask-actions">
                 <img src="../assets/icons/edit.svg" onclick="startSubtaskEdit(${index})" alt="Edit">
                 <img src="../assets/icons/delete.svg" onclick="deleteSubtaskFromEdit(${index})" alt="Delete">
@@ -245,7 +246,7 @@ function startSubtaskEdit(index) {
     if (!item) return;
     const currentTitle = currentEditSubtasks[index].title;
     item.querySelector('.subtask-title').outerHTML =
-        `<input class="subtask-edit-input" value="${currentTitle}"
+        `<input class="subtask-edit-input" value="${escapeHtml(currentTitle)}"
             onblur="finishSubtaskEdit(${index}, this.value)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}
                        if(event.key==='Escape'){event.preventDefault();refreshEditSubtaskUI();}">`;

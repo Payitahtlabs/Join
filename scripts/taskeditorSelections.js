@@ -163,13 +163,14 @@ function getInitials(name) {
  * @returns {string} HTML template string representing the dropdown item.
  */
 function buildContactTemplate(id, name, displayName, color, initials) {
+    const safeColor = sanitizeColor(color);
     return `
-        <div class="dropdown_avatar" style="background-color:${color};">${initials}</div>
-        <span>${displayName}</span>
+        <div class="dropdown_avatar" style="background-color:${safeColor};">${escapeHtml(initials)}</div>
+        <span>${escapeHtml(displayName)}</span>
         <input type="checkbox"
-            data-contactid="${id}"
-            data-contactname="${name}"
-            data-color="${color}">
+            data-contactid="${escapeHtml(id)}"
+            data-contactname="${escapeHtml(name)}"
+            data-color="${safeColor}">
     `;
 }
 

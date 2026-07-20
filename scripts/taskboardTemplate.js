@@ -8,8 +8,9 @@
 
 function renderCardBadge(u, index) {
     const ml = index === 0 ? '0' : '-12px';
-    return `<div class="user-badge" style="background-color:${u.color || '#2A3647'};z-index:${10 - index};margin-left:${ml};">
-    ${resolveUserInitials(u)}
+    const safeColor = sanitizeColor(u.color);
+    return `<div class="user-badge" style="background-color:${safeColor};z-index:${10 - index};margin-left:${ml};">
+    ${escapeHtml(resolveUserInitials(u))}
   </div>`;
 }
 
@@ -17,9 +18,10 @@ function renderDetailBadge(u) {
     const name = u.name || 'Unknown';
     const displayName = String(u.id || '').startsWith('self_') ? `${name} (You)` : name;
     const initials = resolveUserInitials(u);
+    const safeColor = sanitizeColor(u.color);
     return `<div class="assigned-user-badge-container">
-    <div class="user-badge" style="background-color:${u.color || '#2A3647'};">${initials}</div>
-    <span>${displayName}</span>
+    <div class="user-badge" style="background-color:${safeColor};">${escapeHtml(initials)}</div>
+    <span>${escapeHtml(displayName)}</span>
   </div>`;
 }
 
@@ -48,8 +50,8 @@ function renderSubtaskItems(subtasksRaw, taskId) {
         const done = s?.completed || s?.done;
         const title = resolveSubtaskTitle(s, i);
         const icon = done ? 'checked' : 'empty';
-        return `<div class="subtask-row" onclick="updateSubtaskStatus('${taskId}', ${i}, ${!done})">
-      <img src="../assets/icons/checkbox_${icon}.svg"><span>${title}</span>
+        return `<div class="subtask-row" onclick="updateSubtaskStatus('${escapeHtml(taskId)}', ${i}, ${!done})">
+      <img src="../assets/icons/checkbox_${icon}.svg"><span>${escapeHtml(title)}</span>
     </div>`;
     }).join('');
 }
@@ -103,7 +105,7 @@ function renderMoveToItems(id, currentStatus) {
             const targetIndex = BOARD_STATUSES.indexOf(s);
             const arrow = targetIndex < currentIndex ? '↑' : '↓';
             const label = labels[s] || s;
-            return `<div class="move-to-item" onclick="event.stopPropagation();moveTaskToStatus('${id}','${s}');closeAllMoveToMenus()">
+            return `<div class="move-to-item" onclick="event.stopPropagation();moveTaskToStatus('${escapeHtml(id)}','${escapeHtml(s)}');closeAllMoveToMenus()">
         <span class="move-to-arrow">${arrow}</span>${label}
       </div>`;
         }).join('');
@@ -118,16 +120,18 @@ function renderMoveToItems(id, currentStatus) {
  * @returns {string} HTML string of the task card.
  */
 function getCardTemplate(task, id) {
-    const prio = (task.priority || 'low').toLowerCase();
+  const rawPrio = String(task.priority || 'low').toLowerCase();
+  const prio = ['urgent', 'medium', 'low'].includes(rawPrio) ? rawPrio : 'low';
     const catClass = buildCategoryClass(task.category);
     const catText = task.category || 'User Story';
     const currentStatus = task.status || 'todo';
+    const safeId = escapeHtml(id);
 
-    return `<div class="card" draggable="true" onclick="event.stopPropagation();openTaskDetail('${id}')" ondragstart="event.dataTransfer.setData('text/plain','${id}')" style="position:relative;">
-    <div class="badge ${catClass}">${catText}</div>
+    return `<div class="card" draggable="true" onclick="event.stopPropagation();openTaskDetail('${safeId}')" ondragstart="event.dataTransfer.setData('text/plain','${safeId}')" style="position:relative;">
+    <div class="badge ${catClass}">${escapeHtml(catText)}</div>
     <div class="card-content">
-      <h2 class="card-title">${task.title || 'No Title'}</h2>
-      <p class="card-description">${task.description || ''}</p>
+      <h2 class="card-title">${escapeHtml(task.title || 'No Title')}</h2>
+      <p class="card-description">${escapeHtml(task.description || '')}</p>
     </div>
     ${renderProgressBar(task.subtasks)}
     <div class="card-footer">
@@ -137,12 +141,12 @@ function getCardTemplate(task, id) {
       </div>
     </div>
     <div class="card-move-to">
-      <button class="move-to-btn" onclick="toggleMoveToMenu(event,'${id}')" aria-label="Move task">
+      <button class="move-to-btn" onclick="toggleMoveToMenu(event,'${safeId}')" aria-label="Move task">
         <img src="../assets/icons/move-to-icon.png" alt="Move to">
       </button>
-      <div class="move-to-menu" id="move-to-menu-${id}">
+      <div class="move-to-menu" id="move-to-menu-${safeId}">
         <div class="move-to-title">Move to</div>
-        ${renderMoveToItems(id, currentStatus)}
+        ${renderMoveToItems(safeId, currentStatus)}
       </div>
     </div>
   </div>`;
@@ -152,31 +156,33 @@ function getCardTemplate(task, id) {
  * Generates the HTML for the task detail view in the overlay.
  */
 function getTaskDetailTemplate(task, id) {
-    const prio = (task.priority || 'low').toLowerCase();
+  const rawPrio = String(task.priority || 'low').toLowerCase();
+  const prio = ['urgent', 'medium', 'low'].includes(rawPrio) ? rawPrio : 'low';
     const prioLabel = prio.charAt(0).toUpperCase() + prio.slice(1);
     const catClass = buildCategoryClass(task.category);
     const catText = task.category || 'User Story';
+    const safeId = escapeHtml(id);
     return `<div class="task-detail-card">
     <div class="detail-header">
-      <div class="badge ${catClass}">${catText}</div>
+      <div class="badge ${catClass}">${escapeHtml(catText)}</div>
       <button class="close-btn-overlay" onclick="closeTaskDetail()"><img src="../assets/icons/close.svg" alt="Close"></button>
     </div>
-    <h1 class="detail-title">${task.title || 'No Title'}</h1>
-    <p class="detail-description">${task.description || ''}</p>
-    <div class="detail-info-row"><span class="info-label">Due date:</span><span class="info-value">${formatDate(task.dueDate)}</span></div>
+    <h1 class="detail-title">${escapeHtml(task.title || 'No Title')}</h1>
+    <p class="detail-description">${escapeHtml(task.description || '')}</p>
+    <div class="detail-info-row"><span class="info-label">Due date:</span><span class="info-value">${escapeHtml(formatDate(task.dueDate))}</span></div>
     <div class="detail-prio-row"><span class="info-label">Priority:</span>
-      <div class="info-value-prio"><span>${prioLabel}</span><img src="../assets/icons/prio-${prio}.svg" alt="${prioLabel}"></div>
+      <div class="info-value-prio"><span>${escapeHtml(prioLabel)}</span><img src="../assets/icons/prio-${prio}.svg" alt="${escapeHtml(prioLabel)}"></div>
     </div>
     <div class="detail-section"><h3 class="section-title">Assigned To:</h3>
       <div class="assigned-list">${renderContactBadges(task.assignedTo, 100, true)}</div>
     </div>
     <div class="detail-section"><h3 class="section-title">Subtasks</h3>
-      <div class="subtask-list">${renderSubtaskItems(task.subtasks, id)}</div>
+      <div class="subtask-list">${renderSubtaskItems(task.subtasks, safeId)}</div>
     </div>
     <div class="detail-actions">
-      <button class="action-btn" onclick="deleteTask('${id}')"><img src="../assets/icons/delete_text.svg" alt="Delete"></button>
+      <button class="action-btn" onclick="deleteTask('${safeId}')"><img src="../assets/icons/delete_text.svg" alt="Delete"></button>
       <div class="action-divider"></div>
-      <button class="action-btn" onclick="editTask('${id}')"><img src="../assets/icons/edit_text.svg" alt="Edit"></button>
+      <button class="action-btn" onclick="editTask('${safeId}')"><img src="../assets/icons/edit_text.svg" alt="Edit"></button>
     </div>
   </div>`;
 }
@@ -186,15 +192,16 @@ function getTaskDetailTemplate(task, id) {
  */
 function getEditTaskTemplate(task, id) {
     const curr = (task.priority || 'low').toLowerCase();
+  const safeId = escapeHtml(id);
     return `<div class="card-inner">
     <button class="close-btn-overlay" onclick="closeTaskDetail()"><img src="../assets/icons/close.svg" alt="Close"></button>
     <div class="task-edit-container"><div class="edit-scroll-area">
       <label class="edit-label">Title</label>
-      <input type="text" id="edit-title" class="edit-input" value="${task.title || ''}">
+      <input type="text" id="edit-title" class="edit-input" value="${escapeHtml(task.title || '')}">
       <label class="edit-label">Description</label>
-      <textarea id="edit-description" class="edit-textarea">${task.description || ''}</textarea>
+      <textarea id="edit-description" class="edit-textarea">${escapeHtml(task.description || '')}</textarea>
       <label class="edit-label">Due date</label>
-      <input type="date" id="edit-date" class="edit-input" value="${task.dueDate || ''}">
+      <input type="date" id="edit-date" class="edit-input" value="${escapeHtml(task.dueDate || '')}">
       <label class="edit-label edit-label-priority">Priority</label>
       <div class="priority-row-edit">${renderPrioButtons(curr)}</div>
       <label class="edit-label">Assigned to</label>
@@ -213,6 +220,6 @@ function getEditTaskTemplate(task, id) {
       </div>
       <ul id="edit-subtask-list" class="edit-subtask-list"></ul>
     </div></div>
-    <button class="save-btn" onclick="saveTaskEdit('${id}')">Ok <img src="../assets/icons/check.svg"></button>
+    <button class="save-btn" onclick="saveTaskEdit('${safeId}')">Ok <img src="../assets/icons/check.svg"></button>
   </div>`;
 }

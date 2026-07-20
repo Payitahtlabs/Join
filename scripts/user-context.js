@@ -287,6 +287,20 @@ function escapeHtml(text = '') {
 
 
 /**
+ * Validates and normalizes color values for inline CSS usage.
+ * @param {string} [color=''] - Raw color value.
+ * @param {string} [fallback='#2A3647'] - Fallback color.
+ * @returns {string} Safe hex color.
+ * @category User Context
+ * @subcategory Utility
+ */
+function sanitizeColor(color = '', fallback = '#2A3647') {
+	const normalizedColor = String(color || '').trim();
+	return /^#[0-9a-fA-F]{3,8}$/.test(normalizedColor) ? normalizedColor : fallback;
+}
+
+
+/**
  * Hydrates user-dependent UI fragments after DOM is ready.
  * @async
  * @returns {Promise<void>}

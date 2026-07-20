@@ -55,9 +55,10 @@ function handleAddSubtask(input, list, wrapper) {
  */
 function createSubtaskElement(value) {
     let li = document.createElement("li");
+    const safeValue = escapeHtml(value);
 
     li.innerHTML = `
-        <span class="subtask_text">• ${value}</span>
+        <span class="subtask_text">• ${safeValue}</span>
         <div class="subtask_item_actions">
             <img src="../assets/icons/edit.svg" class="edit_btn">
             <div class="separator"></div>
@@ -85,7 +86,7 @@ function activateEditMode(li) {
     let span = li.querySelector(".subtask_text");
     let old = span.textContent.replace("• ", "");
 
-    span.innerHTML = `<input class="subtask_edit_input" value="${old}">`;
+    span.innerHTML = `<input class="subtask_edit_input" value="${escapeHtml(old)}">`;
 
     let input = span.querySelector("input");
     input.focus();
