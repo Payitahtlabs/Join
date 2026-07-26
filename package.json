@@ -10,16 +10,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Hueppi92/join.git"
+    "url": "git+https://github.com/Payitahtlabs/Join.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/Hueppi92/join/issues"
+    "url": "https://github.com/Payitahtlabs/Join/issues"
   },
-  "homepage": "https://github.com/Hueppi92/join#readme",
+  "homepage": "https://github.com/Payitahtlabs/Join#readme",
   "devDependencies": {
     "better-docs": "^2.7.3",
     "jsdoc": "^4.0.5"
